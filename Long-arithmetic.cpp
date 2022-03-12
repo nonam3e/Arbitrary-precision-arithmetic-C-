@@ -43,6 +43,34 @@ public:
         }
         return *this;
     }
+    BN& operator + (const BN& other) {
+        BN *term;
+        BN result;
+        if (len < other.len) {
+            term = this;
+            if (other.capcity - other.len < 2) result.capacity = other.capacity + 1;
+            result = other;
+        }
+        else {
+            term = &other;
+            if (capcity - len < 2) result.capacity = capacity + 1;
+            result = *this;
+        }
+        Base carry = 0;
+        int i;
+        for (i = 0; i < term->len; i++) {
+            result.coef[i] += (term->coef[i] + carry);
+            if (result.coef[i] <= term->coef[i]) carry = 1;
+            else carry = 0;
+        }
+        while (carry != 0) {
+            result.coef[i] += carry;
+            if (result.coef[i]) carry = 0;
+            i++;
+        }
+        if (i > result.len) result.len = i;
+        return result;
+    }
     ~BN() { if(coef) delete []coef; coef = NULL;}
     
     friend istream & operator >> (istream &, BN &);
