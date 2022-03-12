@@ -1,11 +1,12 @@
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
-typedef unsigned int BASE;
+typedef char BASE;
 #define BASE_SIZE (sizeof(BASE)*8)
 
-const char alphabet[] = "0123456789abcdef";
+constexpr char alphabet[] = "0123456789abcdef";
 
 class BN {
     BASE *coef;
@@ -44,19 +45,19 @@ public:
         return *this;
     }
     BN& operator + (const BN& other) {
-        BN *term;
+        const BN *term;
         BN result;
         if (len < other.len) {
             term = this;
-            if (other.capcity - other.len < 2) result.capacity = other.capacity + 1;
+            if (other.capacity - other.len < 2) result.capacity = other.capacity + 1;
             result = other;
         }
         else {
             term = &other;
-            if (capcity - len < 2) result.capacity = capacity + 1;
+            if (capacity - len < 2) result.capacity = capacity + 1;
             result = *this;
         }
-        Base carry = 0;
+        BASE carry = 0;
         int i;
         for (i = 0; i < term->len; i++) {
             result.coef[i] += (term->coef[i] + carry);
@@ -71,7 +72,7 @@ public:
         if (i > result.len) result.len = i;
         return result;
     }
-    ~BN() { if(coef) delete []coef; coef = NULL;}
+    ~BN() {delete []coef; coef = nullptr;}
     
     friend istream & operator >> (istream &, BN &);
     friend ostream & operator << (ostream &,const BN &);
@@ -129,8 +130,13 @@ ostream & operator << (ostream & out,const BN &self) {
 // 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
 
 int main() {
-    BN a(1,false);
-    cin>>a;
-    cout<<a;
+    ofstream output("output.txt");
+    ifstream input("input.txt");
+    BN a,b;
+    input>>a>>b;
+    input.close();
+    BN c = a + b;
+    output<<c;
+    output.close();
     return 0;
 }
