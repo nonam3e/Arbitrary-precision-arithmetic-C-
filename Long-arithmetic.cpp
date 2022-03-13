@@ -35,10 +35,12 @@ public:
     }
     BN& operator = (const BN& other) {
         if (this != &other) {
-            if (capacity < other.capacity) capacity = other.capacity;
+            if (capacity < other.capacity) {
+                capacity = other.capacity;
+                delete[]coef;
+                coef = new BASE[capacity];
+            }
             len = other.len;
-            delete[]coef;
-            coef = new BASE[capacity];
             for (int i = 0; i < len; i++) {
                 coef[i] = other.coef[i];
             }
@@ -61,8 +63,12 @@ public:
         BASE carry = 0;
         int i;
         for (i = 0; i < term->len; i++) {
+            if (!(result.coef[i] || carry)) {
+                result.coef[i] = term->coef[i];
+                continue;
+            }
             result.coef[i] += (term->coef[i] + carry);
-            if (result.coef[i] <= term->coef[i]) carry = 1;
+            if (result.coef[i] <= term->coef[i] && term->coef[i] || !result.coef[i] && carry) carry = 1;
             else carry = 0;
         }
         while (carry != 0) {
@@ -126,14 +132,12 @@ ostream& operator << (ostream& out, const BN& self) {
     out << "0x";
     bool skip_zero = true;
     for (int i = self.len - 1; i >= 0; i--) {
-        if (i || self.coef[i] != 0)
-            for (int j = BASE_SIZE - 4; j >= 0; j -= 4) {
-                BASE temp = 15 & self.coef[i] >> j;
-                if (!temp && skip_zero) continue;
-                out << alphabet[temp];
-                skip_zero = false;
-            }
-        else out << 0;
+        for (int j = BASE_SIZE - 4; j >= 0; j -= 4) {
+            BASE temp = 15 & self.coef[i] >> j;
+            if (!temp && skip_zero) continue;
+            out << alphabet[temp];
+            skip_zero = false;
+        }
     }
     return out;
 }
