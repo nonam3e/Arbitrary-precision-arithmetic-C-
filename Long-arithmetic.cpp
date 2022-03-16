@@ -4,7 +4,7 @@
 
 using namespace std;
 
-typedef unsigned char BASE;
+typedef unsigned short BASE;
 #define BASE_SIZE (sizeof(BASE)*8)
 
 constexpr char alphabet[] = "0123456789abcdef";
@@ -47,6 +47,53 @@ public:
         }
         return *this;
     }
+    bool operator == (const BN& other) {
+        if (len!=other.len) return false;
+        for (int i = len-1; i >= 0; i--) {
+            if (coef[i]!=other.coef[i]) return false;
+        }
+        return true;
+    }
+    bool operator != (const BN& other) {
+        return !(*this==other);
+    }
+    bool operator > (const BN& other) {
+        if (len>other.len) return true;
+        else if (other.len>len) return false;
+        for (int i = len-1; i >= 0; i--) {
+            if (coef[i] > other.coef[i]) return true;
+            else if (coef[i] < other.coef[i]) return false;
+        }
+        return false;
+    }
+    bool operator >= (const BN& other) {
+        if (len>other.len) return true;
+        else if (other.len>len) return false;
+        for (int i = len-1; i >= 0; i--) {
+            if (coef[i] > other.coef[i]) return true;
+            else if (coef[i] < other.coef[i]) return false;
+        }
+        return true;
+    }
+    bool operator < (const BN& other) {
+        if (len>other.len) return false;
+        else if (other.len>len) return true;
+        for (int i = len-1; i >= 0; i--) {
+            if (coef[i] > other.coef[i]) return false;
+            else if (coef[i] < other.coef[i]) return true;
+        }
+        return false;
+    }
+    bool operator <= (const BN& other) {
+        if (len>other.len) return false;
+        else if (other.len>len) return true;
+        for (int i = len-1; i >= 0; i--) {
+            if (coef[i] > other.coef[i]) return false;
+            else if (coef[i] < other.coef[i]) return true;
+        }
+        return true;
+    }
+
     BN operator + (const BN& other) {
         const BN* term;
         BN result;
@@ -63,7 +110,7 @@ public:
         BASE carry = 0;
         int i;
         for (i = 0; i < term->len; i++) {
-            if (!(result.coef[i] || carry)) {
+            if (!(result.coef[i] || carry)) {//n+0+0=n
                 result.coef[i] = term->coef[i];
                 continue;
             }
@@ -79,6 +126,7 @@ public:
         if (i > result.len) result.len = i;
         return result;
     }
+
     ~BN() { delete[]coef; coef = nullptr; }
 
     friend istream& operator >> (istream&, BN&);
@@ -107,7 +155,7 @@ istream& operator >> (istream& in, BN& self) {
             line[low] ^= line[high];
         }
     }
-    self.capacity = line.length() * 4 / BASE_SIZE;
+    self.capacity = line.length() * 4 / BASE_SIZE; //len==capacity
     if (line.length() * 4 % BASE_SIZE) self.capacity++;
     self.len = self.capacity;
     delete[]self.coef;
@@ -149,7 +197,7 @@ int main() {
     BN a, b;
     cin >> a >> b;
     cout << a << "+" << b << endl;
-    BN c = a + b;
-    cout << c;
+    BN d = a + b;
+    cout << d;
     return 0;
 }
