@@ -7,7 +7,7 @@ using namespace std;
 typedef unsigned short BASE;
 #define BASE_SIZE (sizeof(BASE)*8)
 
-constexpr char alphabet[] = "0123456789abcdef";
+const char alphabet[] = "0123456789abcdef";
 
 class BN {
     BASE* coef;
@@ -32,6 +32,13 @@ public:
         coef = new BASE[capacity];
         for (int i = 0; i < len; i++)
             coef[i] = other.coef[i];
+    }
+    void new_capacity(int n) {
+        if (n > capacity) {
+            capacity = n;
+            delete[] coef;
+            coef = new BASE[capacity];
+        }
     }
     BN& operator = (const BN& other) {
         if (this != &other) {
@@ -99,12 +106,12 @@ public:
         BN result;
         if (len < other.len) {
             term = this;
-            if (other.capacity - other.len < 2) result.capacity = other.capacity + 1;
+            if (other.capacity - other.len < 2) result.new_capacity(other.capacity + 1);
             result = other;
         }
         else {
             term = &other;
-            if (capacity - len < 2) result.capacity = capacity + 1;
+            if (capacity - len < 2) result.new_capacity(capacity + 1);
             result = *this;
         }
         BASE carry = 0;
@@ -125,6 +132,11 @@ public:
         }
         if (i > result.len) result.len = i;
         return result;
+    }
+
+    BN& operator += (const BN& other) {
+        *this = *this + other;
+        return *this;
     }
 
     ~BN() { delete[]coef; coef = nullptr; }
@@ -153,8 +165,8 @@ istream& operator >> (istream& in, BN& self) {
             line[low] ^= line[high];
             line[high] ^= line[low];
             line[low] ^= line[high];
-        }
-    }
+        };
+    };
     self.capacity = line.length() * 4 / BASE_SIZE; //len==capacity
     if (line.length() * 4 % BASE_SIZE) self.capacity++;
     self.len = self.capacity;
@@ -197,7 +209,8 @@ int main() {
     BN a, b;
     cin >> a >> b;
     cout << a << "+" << b << endl;
-    BN d = a + b;
-    cout << d;
+    BN c = a + b;
+    c += a + b + c;
+    cout << c;
     return 0;
 }
