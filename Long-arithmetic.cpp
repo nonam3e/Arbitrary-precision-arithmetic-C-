@@ -94,39 +94,78 @@ public:
 
     BN operator + (const BN& other) {
         const BN* term;
-        BN result;
+        BN sum;
         if (len < other.len) {
             term = this;
-            if (other.capacity - other.len < 2) result.new_capacity(other.capacity + 1);
-            result = other;
+            if (other.capacity - other.len < 2) sum.new_capacity(other.capacity + 1);
+            sum = other;
         }
         else {
             term = &other;
-            if (capacity - len < 2) result.new_capacity(capacity + 1);
-            result = *this;
+            if (capacity - len < 2) sum.new_capacity(capacity + 1);
+            sum = *this;
         }
         BASE carry = 0;
         int i;
         for (i = 0; i < term->len; i++) {
-            if (!(result.coef[i] || carry)) {//n+0+0=n
-                result.coef[i] = term->coef[i];
+            if (!(sum.coef[i] || carry)) {//n+0+0=n
+                sum.coef[i] = term->coef[i];
                 continue;
             }
-            result.coef[i] += (term->coef[i] + carry);
-            if (result.coef[i] <= term->coef[i] && term->coef[i] || !result.coef[i] && carry) carry = 1;
+            sum.coef[i] += (term->coef[i] + carry);
+            if (sum.coef[i] <= term->coef[i] && term->coef[i] || !sum.coef[i] && carry) carry = 1;
             else carry = 0;
         }
         while (carry != 0) {
-            result.coef[i] += carry;
-            if (result.coef[i]) carry = 0;
+            sum.coef[i] += carry;
+            if (sum.coef[i]) carry = 0;
             i++;
         }
-        if (i > result.len) result.len = i;
-        return result;
+        if (i > sum.len) sum.len = i;
+        return sum;
     }
 
     BN& operator += (const BN& other) {
         *this = *this + other;
+        return *this;
+    }
+
+    BN operator - (const BN& other) { // absolute difference
+        const BN *sub;
+        BN difference;
+        if (*this >= other) {
+            difference = *this;
+            sub = &other;
+        } else {
+            difference = other;
+            sub = this;
+        }
+        BASE carry = 0;
+        int i = 0;
+        for (; i < sub->len; i++) {
+            if (difference.coef[i] >= (sub->coef[i]+carry) && difference.coef[i] >= sub->coef[i]) {
+                difference.coef[i] -= (sub->coef[i] + carry);
+                if (sub->coef[i] && !(sub->coef[i]+carry)) carry = 1;
+                else carry = 0;
+            }
+            else {
+                difference.coef[i] -= (sub->coef[i] + carry);
+                carry = 1;
+            }
+        }
+        while (carry) {
+            if (!difference.coef[i]) difference.coef[i]-=carry;
+            else {
+                difference.coef[i]-=carry;
+                carry = 0;
+            }
+            i++;
+        }
+        if (!difference.coef[difference.len-1]) difference.len--;
+        return difference;
+    }
+    BN& operator -= (const BN& other) {
+        *this = *this - other;
         return *this;
     }
 
@@ -185,6 +224,10 @@ ostream& operator << (ostream& out, const BN& self) {
     for (int i = self.len - 1; i >= 0; i--) {
         for (int j = BASE_SIZE - 4; j >= 0; j -= 4) {
             BASE temp = 15 & self.coef[i] >> j;
+            if (i == 0 && j == 0) {
+                out << alphabet[temp];
+                break;
+            }
             if (!temp && skip_zero) continue;
             out << alphabet[temp];
             skip_zero = false;
@@ -202,6 +245,8 @@ int main() {
     cout << a << "+" << b << endl;
     BN c = a + b;
     c += a + b + c;
-    cout << c;
+    c = c - a - b - a - b - b - a + b;
+    if (c == b)
+        cout << c;
     return 0;
 }
