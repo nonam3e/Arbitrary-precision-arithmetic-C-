@@ -1,12 +1,12 @@
 #include <iostream>
 #include <string>
-#include <fstream>
 
 using namespace std;
 
 typedef unsigned short BASE;
 #define BASE_SIZE (sizeof(BASE)*8)
 
+//a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
 const char alphabet[] = "0123456789abcdef";
 
 class BN {
@@ -16,15 +16,18 @@ class BN {
 public:
     BN(int maxlen = 1, bool fill_zeros = true) {
         capacity = maxlen;
-        len = 0;
         coef = new BASE[capacity];
-        if (fill_zeros)
+        if (fill_zeros) {
+            len = 1;
             for (int i = 0; i < capacity; i++)
                 coef[i] = 0;
-        else
+        }
+        else {
+            len = maxlen;
             for (int i = 0; i < capacity; i++) {
                 coef[i] = rand();
             }
+        }
     }
     BN(const BN& other) {
         capacity = other.capacity;
@@ -83,22 +86,10 @@ public:
         return true;
     }
     bool operator < (const BN& other) {
-        if (len>other.len) return false;
-        else if (other.len>len) return true;
-        for (int i = len-1; i >= 0; i--) {
-            if (coef[i] > other.coef[i]) return false;
-            else if (coef[i] < other.coef[i]) return true;
-        }
-        return false;
+        return !(*this>=other);
     }
     bool operator <= (const BN& other) {
-        if (len>other.len) return false;
-        else if (other.len>len) return true;
-        for (int i = len-1; i >= 0; i--) {
-            if (coef[i] > other.coef[i]) return false;
-            else if (coef[i] < other.coef[i]) return true;
-        }
-        return true;
+        return !(*this>other);
     }
 
     BN operator + (const BN& other) {
@@ -165,8 +156,8 @@ istream& operator >> (istream& in, BN& self) {
             line[low] ^= line[high];
             line[high] ^= line[low];
             line[low] ^= line[high];
-        };
-    };
+        }
+    }
     self.capacity = line.length() * 4 / BASE_SIZE; //len==capacity
     if (line.length() * 4 % BASE_SIZE) self.capacity++;
     self.len = self.capacity;
