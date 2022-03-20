@@ -3,7 +3,8 @@
 
 using namespace std;
 
-typedef unsigned short BASE;
+typedef unsigned __int8 BASE;
+typedef unsigned __int16 DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -102,7 +103,7 @@ public:
         }
         else {
             term = &other;
-            if (capacity - len < 2) sum.new_capacity(capacity + 1);
+            if (capacity - len < 2) sum.new_capacity(capacity + 2);
             sum = *this;
         }
         BASE carry = 0;
@@ -167,6 +168,25 @@ public:
     BN& operator -= (const BN& other) {
         *this = *this - other;
         return *this;
+    }
+    BN operator * (const BASE& factor) {
+        BN product;
+        if (capacity - len < 2) {
+            product.new_capacity(capacity + 2);
+            product = *this;
+        }
+        else product = *this;
+        BASE carry = 0;
+        for (int i = 0; i < len; ++i) {
+            DBASE temp = coef[i] * factor + carry;
+            carry = temp>>BASE_SIZE;
+            product.coef[i]=(BASE)temp;
+        }
+        if (carry) {
+            product.coef[len]=carry;
+            product.len++;
+        }
+        return product;
     }
 
     ~BN() { delete[]coef; coef = nullptr; }
@@ -240,13 +260,20 @@ ostream& operator << (ostream& out, const BN& self) {
 // 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
 
 int main() {
-    BN a, b;
-    cin >> a >> b;
-    cout << a << "+" << b << endl;
-    BN c = a + b;
-    c += a + b + c;
-    c = c - a - b - a - b - b - a + b;
-    if (c == b)
-        cout << c;
+    BASE a = 0xff;
+    BN b;
+    cin>>b;
+    cout<<b<<endl;
+    b = b * a;
+    cout<<b;
+//    BN a, b;
+//    cin >> a >> b;
+//    cout << a << "+" << b << endl;
+//    BN c = a + b;
+//    c += a + b + c;
+//    c = c - a - b - a - b - b - a + b;
+//    if (c == b)
+//        cout << c;
+
     return 0;
 }
