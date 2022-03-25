@@ -3,8 +3,8 @@
 
 using namespace std;
 
-typedef unsigned __int8 BASE;
-typedef unsigned __int16 DBASE; //:C
+typedef unsigned __int16 BASE;
+typedef unsigned __int32 DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -98,7 +98,7 @@ public:
         BN sum;
         if (len < other.len) {
             term = this;
-            if (other.capacity - other.len < 2) sum.new_capacity(other.capacity + 1);
+            if (other.capacity - other.len < 2) sum.new_capacity(other.capacity + 2);
             sum = other;
         }
         else {
@@ -109,13 +109,10 @@ public:
         BASE carry = 0;
         int i;
         for (i = 0; i < term->len; i++) {
-            if (!(sum.coef[i] || carry)) {//n+0+0=n
-                sum.coef[i] = term->coef[i];
-                continue;
-            }
-            sum.coef[i] += (term->coef[i] + carry);
-            if (sum.coef[i] <= term->coef[i] && term->coef[i] || !sum.coef[i] && carry) carry = 1;
-            else carry = 0;
+            DBASE temp = (DBASE)sum.coef[i] + term->coef[i] + carry;
+            sum.coef[i] = (BASE)temp;
+            temp = temp>>BASE_SIZE;
+            carry = (BASE)temp;
         }
         while (carry != 0) {
             sum.coef[i] += carry;
@@ -144,15 +141,9 @@ public:
         BASE carry = 0;
         int i = 0;
         for (; i < sub->len; i++) {
-            if (difference.coef[i] >= (sub->coef[i]+carry) && difference.coef[i] >= sub->coef[i]) {
-                difference.coef[i] -= (sub->coef[i] + carry);
-                if (sub->coef[i] && !(sub->coef[i]+carry)) carry = 1;
-                else carry = 0;
-            }
-            else {
-                difference.coef[i] -= (sub->coef[i] + carry);
-                carry = 1;
-            }
+            DBASE temp = difference.coef[i]-sub->coef[i]-carry;
+            difference.coef[i] = (BASE)temp;
+            (temp>>BASE_SIZE)? carry = 1: carry = 0;
         }
         while (carry) {
             if (!difference.coef[i]) difference.coef[i]-=carry;
@@ -188,6 +179,28 @@ public:
         }
         return product;
     }
+    BN& operator *= (const BASE& factor) {
+        *this= *this*factor;
+        return *this;
+    }
+    BN operator * (const BN &other) {
+        BN product(len+other.len,true);
+        for (int i = 0; i < other.len; ++i) {
+            BN temp = *this * other.coef[i];
+            BN temp2(temp.len+i);
+            for (int j = 0; j < temp.len; ++j) {
+                temp2.coef[j+i]=temp.coef[j];
+            }
+            temp2.len = temp2.capacity;
+            product+=temp2;
+        }
+
+        return product;
+    }
+    BN& operator *= (const BN & other) {
+        *this=*this*other;
+        return *this;
+    }
 
     ~BN() { delete[]coef; coef = nullptr; }
 
@@ -195,6 +208,9 @@ public:
     friend ostream& operator << (ostream&, const BN&);
 };
 
+BN operator *(BASE other,BN self) {
+    return self*other;
+}
 istream& operator >> (istream& in, BN& self) {
     string line;
     char buffer;
@@ -260,12 +276,18 @@ ostream& operator << (ostream& out, const BN& self) {
 // 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
 
 int main() {
-    BASE a = 0xff;
-    BN b;
-    cin>>b;
-    cout<<b<<endl;
-    b = b * a;
-    cout<<b;
+//    BASE a = 0xff;
+//    BN b;
+//    cin>>b;
+//    cout<<b<<endl;
+//    b = b * a;
+//    cout<<b;
+    BN a, b;
+    BASE f = 0xff;
+    cin>>a;
+    cout<<a<<"*0x"<<hex<<f;
+    a = f * a;
+    cout<<"=="<<a;
 //    BN a, b;
 //    cin >> a >> b;
 //    cout << a << "+" << b << endl;
