@@ -153,7 +153,7 @@ public:
             }
             i++;
         }
-        if (!difference.coef[difference.len-1]) difference.len--;
+        if (!difference.coef[difference.len-1] && difference.len > 1) difference.len--;
         return difference;
     }
     BN& operator -= (const BN& other) {
@@ -211,7 +211,7 @@ public:
             fraction.coef[i] = (BASE)(carry/divisor);
             carry %= divisor;
         }
-        fraction.coef[len-1]?fraction.len=len:fraction.len=len-1;
+        fraction.coef[len-1] || len == 1?fraction.len=len:fraction.len=len-1;
         return make_pair(fraction,(BASE)carry);
     }
     BN operator / (const BASE & divisor) {
@@ -224,6 +224,41 @@ public:
         return this->div(divisor).second;
     }
 
+    istream& read(istream& in, BASE base) {
+        BN result;
+        if (base > 10) base = 10;
+        char buffer;
+        bool skip_zero = true;
+        in >> noskipws >> buffer;
+        while (buffer >= '0' && buffer < '0' + base) {
+            buffer -= '0';
+            if (!buffer && skip_zero) {
+                in >> noskipws >> buffer;
+                continue;
+            }
+            skip_zero = false;
+            result *= base;
+            BN temp;
+            temp.coef[0]=(BASE)buffer;
+            result += temp;
+            in >> noskipws >> buffer;
+        }
+        *this = result;
+        return  in;
+    }
+    ostream& print(ostream& out, BASE base) {
+        string line;
+        BN copy = *this;
+        while (copy.len != 1 || copy.coef[0]) {
+            pair <BN, BASE> buffer = copy.div(base);
+            line+=(buffer.second+'0');
+            copy = buffer.first;
+        }
+        for (int i = line.length()-1; i >= 0; --i) {
+            out<<line[i];
+        }
+        return out;
+    }
     ~BN() { delete[]coef; coef = nullptr; }
 
     friend istream& operator >> (istream&, BN&);
@@ -304,12 +339,12 @@ int main() {
 //    cout<<b<<endl;
 //    b = b * a;
 //    cout<<b;
-    BN a, b;
+    BN a;
     BASE f = 0xff;
-    cin>>a;
-    cout<<a<<"%0x"<<hex<<(int)f;
-    f = a%f;
-    cout<<"==0x"<<hex<<f;
+    a.read(cin,8);
+    cout<<a<<"==";
+    a.print(cout,10);
+//    a.print(cout,8);
 //    BN a, b;
 //    cin >> a >> b;
 //    cout << a << "+" << b << endl;
