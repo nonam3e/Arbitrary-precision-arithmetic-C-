@@ -220,11 +220,8 @@ public:
     BN& operator /= (const BASE & divisor) {
         return *this = this->div(divisor).first;
     }
-    BN operator % (const BASE & divisor) {
+    BASE operator % (const BASE & divisor) {
         return this->div(divisor).second;
-    }
-    BN& operator %= (const BASE & divisor) {
-        return *this = this->div(divisor).second;
     }
 
     ~BN() { delete[]coef; coef = nullptr; }
@@ -310,9 +307,9 @@ int main() {
     BN a, b;
     BASE f = 0xff;
     cin>>a;
-    cout<<a<<"//0x"<<hex<<(int)f;
-    a /= f;
-    cout<<"=="<<a;
+    cout<<a<<"%0x"<<hex<<(int)f;
+    f = a%f;
+    cout<<"==0x"<<hex<<f;
 //    BN a, b;
 //    cin >> a >> b;
 //    cout << a << "+" << b << endl;
