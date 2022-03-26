@@ -202,6 +202,31 @@ public:
         return *this;
     }
 
+    pair <BN,BASE> div (const BASE & divisor) {
+        BN fraction(len);
+        DBASE carry = 0;
+        for (int i = len-1; i >= 0; --i) {
+            carry <<= BASE_SIZE;
+            carry += coef[i];
+            fraction.coef[i] = (BASE)(carry/divisor);
+            carry %= divisor;
+        }
+        fraction.coef[len-1]?fraction.len=len:fraction.len=len-1;
+        return make_pair(fraction,(BASE)carry);
+    }
+    BN operator / (const BASE & divisor) {
+        return this->div(divisor).first;
+    }
+    BN& operator /= (const BASE & divisor) {
+        return *this = this->div(divisor).first;
+    }
+    BN operator % (const BASE & divisor) {
+        return this->div(divisor).second;
+    }
+    BN& operator %= (const BASE & divisor) {
+        return *this = this->div(divisor).second;
+    }
+
     ~BN() { delete[]coef; coef = nullptr; }
 
     friend istream& operator >> (istream&, BN&);
@@ -285,8 +310,8 @@ int main() {
     BN a, b;
     BASE f = 0xff;
     cin>>a;
-    cout<<a<<"*0x"<<hex<<f;
-    a = f * a;
+    cout<<a<<"//0x"<<hex<<(int)f;
+    a /= f;
     cout<<"=="<<a;
 //    BN a, b;
 //    cin >> a >> b;
