@@ -3,8 +3,8 @@
 
 using namespace std;
 
-typedef unsigned __int16 BASE;
-typedef unsigned __int32 DBASE; //:C
+typedef unsigned __int8 BASE;
+typedef unsigned __int16 DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -185,16 +185,20 @@ public:
     }
     BN operator * (const BN &other) {
         BN product(len+other.len,true);
+        product.len = len+other.len;
         for (int i = 0; i < other.len; ++i) {
-            BN temp = *this * other.coef[i];
-            BN temp2(temp.len+i);
-            for (int j = 0; j < temp.len; ++j) {
-                temp2.coef[j+i]=temp.coef[j];
+            BASE carry = 0;
+            for (int j = 0; j < len; ++j) {
+                DBASE temp = (DBASE)coef[j] * other.coef[i] + carry;
+                carry = temp>>BASE_SIZE;
+                DBASE second_temp = product.coef[j+i] + (BASE)temp;
+                product.coef[j+i] = BASE(second_temp);
+                carry += second_temp>>BASE_SIZE;
             }
-            temp2.len = temp2.capacity;
-            product+=temp2;
+            if (carry) {
+                product.coef[len+i]+=carry;
+            }
         }
-
         return product;
     }
     BN& operator *= (const BN & other) {
@@ -223,6 +227,7 @@ public:
     BASE operator % (const BASE & divisor) {
         return this->div(divisor).second;
     }
+
 
     istream& read(istream& in, BASE base) {
         BN result;
@@ -333,26 +338,16 @@ ostream& operator << (ostream& out, const BN& self) {
 // 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
 
 int main() {
-//    BASE a = 0xff;
-//    BN b;
-//    cin>>b;
-//    cout<<b<<endl;
-//    b = b * a;
-//    cout<<b;
-    BN a;
-    BASE f = 0xff;
-    a.read(cin,8);
-    cout<<a<<"==";
-    a.print(cout,10);
-//    a.print(cout,8);
-//    BN a, b;
-//    cin >> a >> b;
+
+    BN a, b;
+    cin >> a >> b;
+    cout << a * b;
 //    cout << a << "+" << b << endl;
 //    BN c = a + b;
 //    c += a + b + c;
 //    c = c - a - b - a - b - b - a + b;
 //    if (c == b)
-//        cout << c;
+//        cout << "==";
 
     return 0;
 }
