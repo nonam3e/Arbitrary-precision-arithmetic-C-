@@ -115,11 +115,12 @@ public:
             carry = (BASE)temp;
         }
         while (carry != 0) {
-            sum.coef[i] += carry;
+            if (i>=len) sum.coef[i] = carry;
+            else sum.coef[i] += carry;
             if (sum.coef[i]) carry = 0;
             i++;
         }
-        if (i > sum.len) sum.len = i;
+        if (i > sum.len && sum.coef[len]) sum.len = i;
         return sum;
     }
 
@@ -196,6 +197,10 @@ public:
             }
             product.coef[len+i]=carry;
         }
+        while(product.len > 1 && product.coef[product.len - 1] == 0){
+            product.len--;
+        }
+
         return product;
     }
     BN& operator *= (const BN & other) {
@@ -244,8 +249,12 @@ public:
         }
         BN u;
         for (int j = m; j >= 0; j--) {
-            BASE q = (copy_self.coef[j + copy_other.len] * b + copy_self.coef[j + copy_other.len - 1]) / (copy_other.coef[copy_other.len - 1]);
-            DBASE r = ((copy_self.coef[j + copy_other.len]) * b + (copy_self.coef[j + copy_other.len - 1])) % (copy_other.coef[copy_other.len - 1]);
+            BASE q = (copy_self.coef[j + copy_other.len] * b +
+                    copy_self.coef[j + copy_other.len - 1]) /
+                            (copy_other.coef[copy_other.len - 1]);
+            DBASE r = ((copy_self.coef[j + copy_other.len]) * b +
+                    (copy_self.coef[j + copy_other.len - 1])) %
+                            (copy_other.coef[copy_other.len - 1]);
 
             if (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2]) {
                 q--;
@@ -259,14 +268,10 @@ public:
             u.len = copy_other.len + 1;
             for(int i = 0; i < copy_other.len + 1; i++)
                 u.coef[i] = copy_self.coef[j + i];
-
-
             if(u < copy_other * q)
                 q--;
-
             u = u - copy_other * q;
             result.coef[j] = (q);
-
             for(int i = 0; i < copy_other.len + 1; ++i)
                 copy_self.coef[j + i] = u.coef[i];
         }
@@ -275,6 +280,19 @@ public:
         }
         u/=d;
         return make_pair(result,u);
+    }
+
+    BN operator /(const BN& other) {
+        return this->div(other).first;
+    }
+    BN operator %(const BN& other) {
+        return this->div(other).second;
+    }
+    BN& operator /=(const BN& other) {
+        return *this=*this/other;
+    }
+    BN& operator %=(const BN& other) {
+        return *this%=*this%other;
     }
 
 
@@ -387,18 +405,34 @@ ostream& operator << (ostream& out, const BN& self) {
 // 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
 
 int main() {
-
+    //testing input and output in dec
     BN a, b;
     a.read(cin, 10);
     b.read(cin,10);
     a.print(cout,10);
     cout<<endl;
     b.print(cout,10);
+    //testing cin and cout
+    cin>>a>>b;
+    cout<<a<<"\t"<<b<<endl;
+    //testing +, - operations
+    BN c = a + b + a + b + b - b;
+    cout<<a<<" + "<<a<<" + "<<b<<" + "<<b<<" + "<<" + "<<b<<" - "<<b<<endl;
+    cout<<"2 * "<<b<<" + 2 *"<<a<<endl;
+    //testing BN (*, /) BASE operations
+    cout<<c<<"=="<< a * 2 + (b * 4)/2<<"?\n";
+    if (c == a * 2 + (b * 4)/2) cout<<"correct"<<endl;
+
+    //testing BN (*,/) BN operations
     pair<BN,BN> d = a.div(b);
     cout<<endl;
     d.first.print(cout,10);
     cout<<endl;
     d.second.print(cout,10);
+    BN e = a/b, f = a%b;
+    cout<<endl<<e<<" * "<<b<<" + "<<f<<" == "<<a<<endl;
+    cout<< e * b + f <<endl;
+    if (e * b + f == a) cout<<"correct"<<endl;
 
     return 0;
 
