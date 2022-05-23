@@ -3,8 +3,8 @@
 
 using namespace std;
 
-typedef unsigned __int8 BASE;
-typedef unsigned __int16 DBASE; //:C
+typedef unsigned __int16 BASE;
+typedef unsigned __int32 DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -141,7 +141,7 @@ public:
         BASE carry = 0;
         int i = 0;
         for (; i < sub->len; i++) {
-            DBASE temp = difference.coef[i]-sub->coef[i]-carry;
+            DBASE temp = (DBASE)difference.coef[i]-sub->coef[i]-carry;
             difference.coef[i] = (BASE)temp;
             (temp>>BASE_SIZE)? carry = 1: carry = 0;
         }
@@ -169,7 +169,7 @@ public:
         else product = *this;
         BASE carry = 0;
         for (int i = 0; i < len; ++i) {
-            DBASE temp = coef[i] * factor + carry;
+            DBASE temp = (DBASE)coef[i] * factor + carry;
             carry = temp>>BASE_SIZE;
             product.coef[i]=(BASE)temp;
         }
@@ -189,15 +189,12 @@ public:
         for (int i = 0; i < other.len; ++i) {
             BASE carry = 0;
             for (int j = 0; j < len; ++j) {
-                DBASE temp = (DBASE)coef[j] * other.coef[i] + carry;
+                DBASE temp = (DBASE)coef[j] * other.coef[i] + carry + product.coef[j+i];
+
+                product.coef[j+i] = BASE(temp);
                 carry = temp>>BASE_SIZE;
-                DBASE second_temp = product.coef[j+i] + (BASE)temp;
-                product.coef[j+i] = BASE(second_temp);
-                carry += second_temp>>BASE_SIZE;
             }
-            if (carry) {
-                product.coef[len+i]+=carry;
-            }
+            product.coef[len+i]=carry;
         }
         return product;
     }
@@ -226,6 +223,58 @@ public:
     }
     BASE operator % (const BASE & divisor) {
         return this->div(divisor).second;
+    }
+
+    pair <BN,BN> div (const BN & other) {
+        if (*this < other)
+            return make_pair(BN(),BN(*this));
+        if (other.len == 1) return this->div(other.coef[0]);
+        int m = len-other.len;
+        DBASE b = ((DBASE)1<<BASE_SIZE);
+        BASE d = b/(other.coef[other.len-1] + 1);
+        BN copy_self(len+1), copy_other(other.len+1), result(m+1);
+        result.len = m + 1;
+        copy_self = *this;
+        copy_other = other;
+        if (d == 1)
+            copy_self.coef[len] = 0;
+        else {
+            copy_other *= d;
+            copy_self *= d;
+        }
+        BN u;
+        for (int j = m; j >= 0; j--) {
+            BASE q = (copy_self.coef[j + copy_other.len] * b + copy_self.coef[j + copy_other.len - 1]) / (copy_other.coef[copy_other.len - 1]);
+            DBASE r = ((copy_self.coef[j + copy_other.len]) * b + (copy_self.coef[j + copy_other.len - 1])) % (copy_other.coef[copy_other.len - 1]);
+
+            if (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2]) {
+                q--;
+                r = r + copy_other.coef[copy_other.len - 1];
+                if (r < b && (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2])) {
+                    q--;
+                    r = r + copy_other.coef[copy_other.len - 1];
+                }
+            }
+            u.new_capacity(copy_other.len + 1);
+            u.len = copy_other.len + 1;
+            for(int i = 0; i < copy_other.len + 1; i++)
+                u.coef[i] = copy_self.coef[j + i];
+
+
+            if(u < copy_other * q)
+                q--;
+
+            u = u - copy_other * q;
+            result.coef[j] = (q);
+
+            for(int i = 0; i < copy_other.len + 1; ++i)
+                copy_self.coef[j + i] = u.coef[i];
+        }
+        while(result.len > 1 && result.coef[result.len - 1] == 0){
+            result.len--;
+        }
+        u/=d;
+        return make_pair(result,u);
     }
 
 
@@ -340,8 +389,32 @@ ostream& operator << (ostream& out, const BN& self) {
 int main() {
 
     BN a, b;
-    cin >> a >> b;
-    cout << a * b;
+    a.read(cin, 10);
+    b.read(cin,10);
+    a.print(cout,10);
+    cout<<endl;
+    b.print(cout,10);
+    pair<BN,BN> d = a.div(b);
+    cout<<endl;
+    d.first.print(cout,10);
+    cout<<endl;
+    d.second.print(cout,10);
+
+    return 0;
+
+
+//    BN a;
+//    a.read(cin, 10);
+//    BASE c = 96;
+//    BN b = a/c;
+//    a.print(cout, 10);
+//    cout<<"//"<<c<<"==0b";
+//    b.print(cout,2);
+//    c = a % c;
+//    cout<<endl<<c<<endl;
+//    BN d;
+//    d.read(cin, 10);
+//    d.print(cout, 10);
 //    cout << a << "+" << b << endl;
 //    BN c = a + b;
 //    c += a + b + c;
