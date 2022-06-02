@@ -3,8 +3,8 @@
 
 using namespace std;
 
-typedef unsigned __int16 BASE;
-typedef unsigned __int32 DBASE; //:C
+typedef unsigned __int32 BASE;
+typedef unsigned __int64 DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -25,8 +25,15 @@ public:
         }
         else {
             len = maxlen;
-            for (int i = 0; i < capacity; i++) {
-                coef[i] = rand();
+            for(int i=0; i<len; i++){
+
+                for(int j = 0; j*12 < BASE_SIZE; j++){
+                    coef[i] = coef[i]<<(j*12)|rand();
+                }
+
+            }
+            while(len>1 && coef[len-1]==0){
+                len--;
             }
         }
     }
@@ -56,6 +63,11 @@ public:
                 coef[i] = other.coef[i];
             }
         }
+        return *this;
+    }
+    BN& operator = (const BASE& other) {
+        len = 1;
+        coef[0] = other;
         return *this;
     }
     bool operator == (const BN& other) {
@@ -154,7 +166,9 @@ public:
             }
             i++;
         }
-        if (!difference.coef[difference.len-1] && difference.len > 1) difference.len--;
+        while(difference.len > 1 && difference.coef[difference.len - 1] == 0){
+            difference.len--;
+        }
         return difference;
     }
     BN& operator -= (const BN& other) {
@@ -185,9 +199,10 @@ public:
         return *this;
     }
     BN operator * (const BN &other) {
-        BN product(len+other.len,true);
+        BN product(len+other.len);
         product.len = len+other.len;
         for (int i = 0; i < other.len; ++i) {
+            if (!other.coef[i]) continue;
             BASE carry = 0;
             for (int j = 0; j < len; ++j) {
                 DBASE temp = (DBASE)coef[j] * other.coef[i] + carry + product.coef[j+i];
@@ -208,7 +223,8 @@ public:
         return *this;
     }
 
-    pair <BN,BASE> div (const BASE & divisor) {
+    pair <BN,BN> div (const BASE & divisor) {
+        if (!divisor) throw invalid_argument("0 Divisor");
         BN fraction(len);
         DBASE carry = 0;
         for (int i = len-1; i >= 0; --i) {
@@ -217,8 +233,14 @@ public:
             fraction.coef[i] = (BASE)(carry/divisor);
             carry %= divisor;
         }
-        fraction.coef[len-1] || len == 1?fraction.len=len:fraction.len=len-1;
-        return make_pair(fraction,(BASE)carry);
+        fraction.len = len;
+        while(fraction.len > 1 && fraction.coef[fraction.len - 1] == 0){
+            fraction.len--;
+        }
+        BASE based_carry = (BASE)carry;
+        BN new_carry;
+        new_carry = based_carry;
+        return make_pair(fraction, new_carry);
     }
     BN operator / (const BASE & divisor) {
         return this->div(divisor).first;
@@ -226,13 +248,18 @@ public:
     BN& operator /= (const BASE & divisor) {
         return *this = this->div(divisor).first;
     }
-    BASE operator % (const BASE & divisor) {
+    BN operator % (const BASE & divisor) {
         return this->div(divisor).second;
     }
 
     pair <BN,BN> div (const BN & other) {
         if (*this < other)
             return make_pair(BN(),BN(*this));
+        if (*this == other) {
+            BN temp;
+            temp.coef[0] = 1;
+            return make_pair(temp,BN());
+        }
         if (other.len == 1) return this->div(other.coef[0]);
         int m = len-other.len;
         DBASE b = ((DBASE)1<<BASE_SIZE);
@@ -247,14 +274,16 @@ public:
             copy_other *= d;
             copy_self *= d;
         }
-        BN u;
+        if (copy_self.len == len) {
+            copy_self.coef[len] = 0;
+            copy_self.len++;
+        }
+        BN u(copy_other.len + 1);
+        u.len = copy_other.len + 1;
+
         for (int j = m; j >= 0; j--) {
-            BASE q = (copy_self.coef[j + copy_other.len] * b +
-                    copy_self.coef[j + copy_other.len - 1]) /
-                            (copy_other.coef[copy_other.len - 1]);
-            DBASE r = ((copy_self.coef[j + copy_other.len]) * b +
-                    (copy_self.coef[j + copy_other.len - 1])) %
-                            (copy_other.coef[copy_other.len - 1]);
+            DBASE q = (copy_self.coef[j + copy_other.len] * b + copy_self.coef[j + copy_other.len - 1]) /(copy_other.coef[copy_other.len - 1]);
+            DBASE r = ((copy_self.coef[j + copy_other.len]) * b + (copy_self.coef[j + copy_other.len - 1])) % (copy_other.coef[copy_other.len - 1]);
 
             if (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2]) {
                 q--;
@@ -264,14 +293,14 @@ public:
                     r = r + copy_other.coef[copy_other.len - 1];
                 }
             }
-            u.new_capacity(copy_other.len + 1);
             u.len = copy_other.len + 1;
             for(int i = 0; i < copy_other.len + 1; i++)
                 u.coef[i] = copy_self.coef[j + i];
-            if(u < copy_other * q)
+            BN temp = copy_other * q;
+            if(u < temp)
                 q--;
-            u = u - copy_other * q;
-            result.coef[j] = (q);
+            u = u - temp;
+            result.coef[j] = q;
             for(int i = 0; i < copy_other.len + 1; ++i)
                 copy_self.coef[j + i] = u.coef[i];
         }
@@ -279,6 +308,9 @@ public:
             result.len--;
         }
         u/=d;
+        while(u.len > 1 && u.coef[u.len - 1] == 0){
+            u.len--;
+        }
         return make_pair(result,u);
     }
 
@@ -322,8 +354,8 @@ public:
         string line;
         BN copy = *this;
         while (copy.len != 1 || copy.coef[0]) {
-            pair <BN, BASE> buffer = copy.div(base);
-            line+=(buffer.second+'0');
+            pair <BN, BN> buffer = copy.div(base);
+            line+=(buffer.second.coef[0]+'0');
             copy = buffer.first;
         }
         for (int i = line.length()-1; i >= 0; --i) {
@@ -401,60 +433,25 @@ ostream& operator << (ostream& out, const BN& self) {
     return out;
 }
 
+void test() {
+    srand(time(NULL));
+    int M = 1000;
+    int T = 1000;
+    BN A,B,C,D;
+    do {
 
-// 0ad3f06c50b16a11f54208fe19a17546773db52e9225d75bcfdb2614956ccfe9234537978e63dfc3c6857929a5f9e3fac33495a941df6753a53225331dc74113e5f6ccdf8ed9f98f4d541409101d605ea8ec9082c610293fe1cba6d4518df359681a4db49ed1bd29c3d77eaa5fd5234b62b7e58724dbfb187b7a0fc0cbbafbd6f95e2e0e5633da4192cb5ae4109ee46c1a638bd0f808b3c2b3a212f5f837f001
-
+        int n = rand() % M + 1;
+        int m = rand() % M + 1;
+        BN E(n, false);
+        BN G(m, false);
+        A = E;
+        B = G;
+        C = A / B;
+        D = A % B;
+    } while (A == C * B + D && A - D == C * B && D < B && --T);
+    cout << T << endl;
+}
 int main() {
-    //testing input and output in dec
-    BN a, b;
-    a.read(cin, 10);
-    b.read(cin,10);
-    a.print(cout,10);
-    cout<<endl;
-    b.print(cout,10);
-    //testing cin and cout
-    cin>>a>>b;
-    cout<<a<<"\t"<<b<<endl;
-    //testing +, - operations
-    BN c = a + b + a + b + b - b;
-    cout<<a<<" + "<<a<<" + "<<b<<" + "<<b<<" + "<<" + "<<b<<" - "<<b<<endl;
-    cout<<"2 * "<<b<<" + 2 *"<<a<<endl;
-    //testing BN (*, /) BASE operations
-    cout<<c<<"=="<< a * 2 + (b * 4)/2<<"?\n";
-    if (c == a * 2 + (b * 4)/2) cout<<"correct"<<endl;
-
-    //testing BN (*,/) BN operations
-    pair<BN,BN> d = a.div(b);
-    cout<<endl;
-    d.first.print(cout,10);
-    cout<<endl;
-    d.second.print(cout,10);
-    BN e = a/b, f = a%b;
-    cout<<endl<<e<<" * "<<b<<" + "<<f<<" == "<<a<<endl;
-    cout<< e * b + f <<endl;
-    if (e * b + f == a) cout<<"correct"<<endl;
-
-    return 0;
-
-
-//    BN a;
-//    a.read(cin, 10);
-//    BASE c = 96;
-//    BN b = a/c;
-//    a.print(cout, 10);
-//    cout<<"//"<<c<<"==0b";
-//    b.print(cout,2);
-//    c = a % c;
-//    cout<<endl<<c<<endl;
-//    BN d;
-//    d.read(cin, 10);
-//    d.print(cout, 10);
-//    cout << a << "+" << b << endl;
-//    BN c = a + b;
-//    c += a + b + c;
-//    c = c - a - b - a - b - b - a + b;
-//    if (c == b)
-//        cout << "==";
-
+    test();
     return 0;
 }
