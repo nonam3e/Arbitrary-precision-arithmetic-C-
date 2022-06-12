@@ -26,15 +26,13 @@ public:
         else {
             len = maxlen;
             for(int i=0; i<len; i++){
-
-                for(int j = 0; j*12 < BASE_SIZE; j++){
-                    coef[i] = coef[i]<<(j*12)|rand();
-                }
-
+                coef[i] = rand();
             }
+            if (!coef[0]) coef[0] = 4;
             while(len>1 && coef[len-1]==0){
                 len--;
             }
+
         }
     }
     BN(const BN& other) {
@@ -141,33 +139,35 @@ public:
         return *this;
     }
 
-    BN operator - (const BN& other) { // absolute difference
-        const BN *sub;
-        BN difference;
-        if (*this >= other) {
-            difference = *this;
-            sub = &other;
-        } else {
-            difference = other;
-            sub = this;
+    BN operator - (const BN& other) {
+        if (*this<other) {
+            throw invalid_argument("- error");
         }
-        BASE carry = 0;
-        int i = 0;
-        for (; i < sub->len; i++) {
-            DBASE temp = (DBASE)difference.coef[i]-sub->coef[i]-carry;
-            difference.coef[i] = (BASE)temp;
-            (temp>>BASE_SIZE)? carry = 1: carry = 0;
+        int j=0;
+        DBASE k = 0;
+        DBASE tmp;
+        int b = BASE_SIZE;
+        BN difference(len);
+        while(j<other.len){
+            tmp = (DBASE)( ((DBASE)( 1 )<<( b )) | (DBASE)( coef[j] ) );
+            tmp = (DBASE)( (DBASE)( tmp ) - (DBASE)( other.coef[j] ) - (DBASE)( k ) );
+            difference.coef[j] = (BASE)( tmp );
+            k = !(tmp>>b);
+
+            j++;
         }
-        while (carry) {
-            if (!difference.coef[i]) difference.coef[i]-=carry;
-            else {
-                difference.coef[i]-=carry;
-                carry = 0;
-            }
-            i++;
+        while(j < len){
+            tmp = ((DBASE)( 1 )<<( b )) | (DBASE)( coef[j] );
+            tmp -= (DBASE)( k );
+            difference.coef[j] = (BASE)( tmp );
+            k = !(tmp>>b);
+            j++;
         }
+
+        difference.len = len;
         while(difference.len > 1 && difference.coef[difference.len - 1] == 0){
             difference.len--;
+
         }
         return difference;
     }
@@ -285,10 +285,10 @@ public:
             DBASE q = (copy_self.coef[j + copy_other.len] * b + copy_self.coef[j + copy_other.len - 1]) /(copy_other.coef[copy_other.len - 1]);
             DBASE r = ((copy_self.coef[j + copy_other.len]) * b + (copy_self.coef[j + copy_other.len - 1])) % (copy_other.coef[copy_other.len - 1]);
 
-            if (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2]) {
+            if (q == b || q * copy_other.coef[copy_other.len-2] > b * r + (DBASE)copy_self.coef[j+copy_other.len-2]) {
                 q--;
                 r = r + copy_other.coef[copy_other.len - 1];
-                if (r < b && (q == b || q * copy_other.coef[copy_other.len-2] > b * r + copy_self.coef[j+copy_other.len-2])) {
+                if (r < b && (q == b || q * copy_other.coef[copy_other.len-2] > b * r + (DBASE)copy_self.coef[j+copy_other.len-2])) {
                     q--;
                     r = r + copy_other.coef[copy_other.len - 1];
                 }
@@ -296,13 +296,27 @@ public:
             u.len = copy_other.len + 1;
             for(int i = 0; i < copy_other.len + 1; i++)
                 u.coef[i] = copy_self.coef[j + i];
-            BN temp = copy_other * q;
-            if(u < temp)
+            while(u.len > 1 && u.coef[u.len - 1] == 0){
+                u.len--;
+            }
+            BN temp = copy_other * (BASE)q;
+            while(temp.len > 1 && temp.coef[temp.len - 1] == 0){
+                temp.len--;
+            }
+            if(u < temp) {
                 q--;
+                temp = copy_other *(BASE)q;
+            }
             u = u - temp;
+            while(u.len > 1 && u.coef[u.len - 1] == 0){
+                u.len--;
+            }
             result.coef[j] = q;
-            for(int i = 0; i < copy_other.len + 1; ++i)
+            for(int i = 0; i < u.len; ++i)
                 copy_self.coef[j + i] = u.coef[i];
+            for(int i = u.len; i < copy_other.len +1;i++) {
+                copy_self.coef[j + i] = 0;
+            }
         }
         while(result.len > 1 && result.coef[result.len - 1] == 0){
             result.len--;
@@ -434,7 +448,7 @@ ostream& operator << (ostream& out, const BN& self) {
 }
 
 void test() {
-    srand(time(NULL));
+//    srand(time(NULL));
     int M = 1000;
     int T = 1000;
     BN A,B,C,D;
@@ -450,6 +464,9 @@ void test() {
         D = A % B;
     } while (A == C * B + D && A - D == C * B && D < B && --T);
     cout << T << endl;
+//    cout<<A<<"//"<<B<<endl<<C;
+//    C = A / B;
+//    cout<<A<<"//"<<B<<endl<<C;
 }
 int main() {
     test();
