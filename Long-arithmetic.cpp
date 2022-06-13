@@ -26,7 +26,10 @@ public:
         else {
             len = maxlen;
             for(int i=0; i<len; i++){
-                coef[i] = rand();
+
+                for(int j = 0; j*12 < BASE_SIZE; j++){
+                    coef[i] = coef[i]<<(j*6)|rand();
+                }
             }
             if (!coef[0]) coef[0] = 4;
             while(len>1 && coef[len-1]==0){
@@ -448,7 +451,7 @@ ostream& operator << (ostream& out, const BN& self) {
 }
 
 void test() {
-//    srand(time(NULL));
+    srand(time(NULL));
     int M = 1000;
     int T = 1000;
     BN A,B,C,D;
@@ -461,6 +464,7 @@ void test() {
         A = E;
         B = G;
         C = A / B;
+//        cout<<A<<"//"<<B<<"=="<<C<<endl;
         D = A % B;
     } while (A == C * B + D && A - D == C * B && D < B && --T);
     cout << T << endl;
