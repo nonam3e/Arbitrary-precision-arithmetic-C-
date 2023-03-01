@@ -1,10 +1,11 @@
 #include <iostream>
 #include <string>
+#include <cstdint>
 
 using namespace std;
 
-typedef unsigned __int32 BASE;
-typedef unsigned __int64 DBASE; //:C
+typedef uint32_t BASE;
+typedef uint64_t DBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -52,6 +53,9 @@ public:
             coef = new BASE[capacity];
         }
     }
+    void resize() {
+        while(this->coef[this->len-1] == 0 && this->len > 1) this->len--;
+    }
     BN& operator = (const BN& other) {
         if (this != &other) {
             if (capacity < other.capacity) {
@@ -80,6 +84,9 @@ public:
     }
     bool operator != (const BN& other) {
         return !(*this==other);
+    }
+    bool operator != (const BASE& other) {
+        return this->len > 1 | this->coef[0] != other;
     }
     bool operator > (const BN& other) {
         if (len>other.len) return true;
@@ -344,6 +351,41 @@ public:
         return *this%=*this%other;
     }
 
+    BN& operator >>=(const BASE& factor) {
+        if (factor > BASE_SIZE) throw invalid_argument("SHIFT IS NOT IMPLEMENTED FOR VALUES >= BASE_SIZE");
+        BASE temp1 = 0;
+        BASE temp2;
+        BASE mask = (1 << factor) - 1;
+        for (int i = this -> len - 1; i >= 0; i--) {
+            temp2 = this->coef[i] & mask;
+            this->coef[i] = (temp1 << (BASE_SIZE-factor)) | (this->coef[i] >> factor);
+            temp1 = temp2;
+        }
+        this->resize();
+        return *this;
+    }
+    BN operator >>(const BASE& factor) {
+        BN other(*this);
+        return other >>= factor;
+    }
+
+    BN operator ^(BN other) {
+        BN result;
+        BN temp(*this);
+        result = (BASE)1;
+        while (other != 0) {
+            if (other.coef[0] & 1) {
+                result *= temp;
+            }
+            temp *= temp;
+            other>>=1;
+        }
+            return result;
+    }
+    BN& operator ^=(BN other) {
+        return *this=*this^other;
+    }
+
 
     istream& read(istream& in, BASE base) {
         BN result;
@@ -389,6 +431,7 @@ public:
 BN operator *(BASE other,BN self) {
     return self*other;
 }
+
 istream& operator >> (istream& in, BN& self) {
     string line;
     char buffer;
@@ -472,7 +515,59 @@ void test() {
 //    C = A / B;
 //    cout<<A<<"//"<<B<<endl<<C;
 }
+
+// test shift function
+void test_shift() {
+    srand(time(NULL));
+    int M = 10;
+    int T = 100;
+    do {
+        int n = rand() % M + 1;
+        BN SHIFT(n, false);
+        BN a = 2;
+        for (BASE i = 1; i <= BASE_SIZE && a < 999999999; i++) {
+            BN shift_res = SHIFT>>i;
+            BN div_res = SHIFT/a;
+            if (shift_res != div_res) {
+                cout<<shift_res<<endl<<div_res<<endl;
+                cout<<i;
+                cout<<endl<<"-------";
+                throw invalid_argument("failed");
+            }
+            a*=2;
+        }
+    } while(--T);
+}
+
+//test pow function
+void test_pow() {
+    srand(time(NULL));
+    int M = 10;
+    int T = 10;
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER(1, false);
+        POWER = (BASE)(rand() % 20 + 1);
+        BN pow_res(INPUT);
+        pow_res ^= POWER;
+        BN mul_res(INPUT);
+        BN ONE(1, true);
+        ONE = BASE(1);
+        BN CPOWER = POWER;
+        while (CPOWER > ONE) {
+            mul_res *= INPUT;
+            CPOWER -= ONE;
+        }
+        if (pow_res != mul_res) {
+            cout<<pow_res<<endl<<mul_res<<endl;
+            cout<<endl<<"-------";
+            throw invalid_argument("failed");
+        }
+    } while(--T);
+}
+
 int main() {
-    test();
+    test_pow();
     return 0;
 }
