@@ -36,7 +36,6 @@ public:
             while(len>1 && coef[len-1]==0){
                 len--;
             }
-
         }
     }
     BN(const BN& other) {
@@ -45,6 +44,12 @@ public:
         coef = new BASE[capacity];
         for (int i = 0; i < len; i++)
             coef[i] = other.coef[i];
+    }
+    BN(const BASE& base) {
+        capacity = 1;
+        len = 1;
+        coef = new BASE[capacity];
+        coef[0] = base;
     }
     void new_capacity(int n) {
         if (n > capacity) {
@@ -353,12 +358,12 @@ public:
 
     BN& operator >>=(const BASE& factor) {
         if (factor > BASE_SIZE) throw invalid_argument("SHIFT IS NOT IMPLEMENTED FOR VALUES >= BASE_SIZE");
-        BASE temp1 = 0;
+        BASE temp1(0);
         BASE temp2;
         BASE mask = (1 << factor) - 1;
-        for (int i = this -> len - 1; i >= 0; i--) {
+        for (int i = this->len - 1; i >= 0; i--) {
             temp2 = this->coef[i] & mask;
-            this->coef[i] = (temp1 << (BASE_SIZE-factor)) | (this->coef[i] >> factor);
+            this->coef[i] = (temp1 << (BASE_SIZE - factor)) | (this->coef[i] >> factor);
             temp1 = temp2;
         }
         this->resize();
@@ -370,9 +375,8 @@ public:
     }
 
     BN operator ^(BN other) {
-        BN result;
+        BN result((BASE)1);
         BN temp(*this);
-        result = (BASE)1;
         while (other != 0) {
             if (other.coef[0] & 1) {
                 result *= temp;
@@ -547,17 +551,13 @@ void test_pow() {
     do {
         int n = rand() % M + 1;
         BN INPUT(n, false);
-        BN POWER(1, false);
-        POWER = (BASE)(rand() % 20 + 1);
-        BN pow_res(INPUT);
-        pow_res ^= POWER;
+        BN POWER((BASE)(rand() % 20 + 1));
+        BN pow_res(INPUT ^ POWER);
         BN mul_res(INPUT);
-        BN ONE(1, true);
-        ONE = BASE(1);
-        BN CPOWER = POWER;
-        while (CPOWER > ONE) {
+        BN ONE((BASE)1);
+        while (POWER > ONE) {
             mul_res *= INPUT;
-            CPOWER -= ONE;
+            POWER -= ONE;
         }
         if (pow_res != mul_res) {
             cout<<pow_res<<endl<<mul_res<<endl;
