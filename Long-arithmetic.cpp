@@ -4,8 +4,9 @@
 
 using namespace std;
 
-typedef uint32_t BASE;
-typedef uint64_t DBASE; //:C
+typedef uint16_t BASE;
+typedef uint32_t DBASE;
+typedef uint64_t FBASE; //:C
 #define BASE_SIZE (sizeof(BASE)*8)
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
@@ -353,7 +354,7 @@ public:
         return *this=*this/other;
     }
     BN& operator %=(const BN& other) {
-        return *this%=*this%other;
+        return *this=*this%other;
     }
 
     BN& operator >>=(const BASE& factor) {
@@ -374,20 +375,60 @@ public:
         return other >>= factor;
     }
 
+    BN square() {
+        BN result(2*this->len,true);
+        result.len = 2*this->len;
+        BASE u;
+        BASE c;
+        DBASE temp;
+        FBASE temp2;
+        for(int i = 0; i < this->len; i++) {
+            temp = (DBASE)this->coef[i] * this->coef[i] + result.coef[2 * i];
+            result.coef[2 * i] = (BASE)temp;
+            u = temp >> BASE_SIZE;
+            c = 0;
+            for (int j = i + 1; j < this->len; j++) {
+                temp = ((DBASE)c << BASE_SIZE) + u;
+                temp2 = (FBASE)this->coef[i] * this->coef[j] * 2 + result.coef[i + j] + temp;
+                result.coef[i + j] = BASE(temp2);
+                u = (BASE)(temp2 >> BASE_SIZE);
+                c = (BASE)(temp2 >> (BASE_SIZE * 2)); 
+            }
+            temp = ((DBASE)result.coef[i + this->len + 1] << BASE_SIZE) + result.coef[i + this->len] + (((DBASE)c << BASE_SIZE) + u);
+            result.coef[i + this->len + 1] = temp >> BASE_SIZE;
+            result.coef[i + this->len] = (BASE)temp;
+        }
+        result.resize();
+        return result;
+    }
     BN operator ^(BN other) {
+        BASE cpy = other.coef[0];
         BN result((BASE)1);
         BN temp(*this);
-        while (other != 0) {
-            if (other.coef[0] & 1) {
+        while (cpy != 0) {
+            if (cpy & 1) {
                 result *= temp;
             }
-            temp *= temp;
-            other>>=1;
+            temp = temp.square();
+            cpy>>=1;
         }
-            return result;
+        return result;
     }
     BN& operator ^=(BN other) {
         return *this=*this^other;
+    }
+    BN powmod(BN other, BN module) {
+        BASE cpy = other.coef[0];
+        BN result((BASE)1);
+        BN temp(*this);
+        while (cpy != 0) {
+            if (cpy & 1) {
+                result = result * temp % module;
+            }
+            temp = temp.square() % module;
+            cpy>>=1;
+        }
+        return result;
     }
 
 
@@ -546,12 +587,12 @@ void test_shift() {
 //test pow function
 void test_pow() {
     srand(time(NULL));
-    int M = 10;
-    int T = 10;
+    int M = 200;
+    int T = 20;
     do {
         int n = rand() % M + 1;
         BN INPUT(n, false);
-        BN POWER((BASE)(rand() % 20 + 1));
+        BN POWER((BASE)(rand() % 100 + 1));
         BN pow_res(INPUT ^ POWER);
         BN mul_res(INPUT);
         BN ONE((BASE)1);
@@ -565,9 +606,137 @@ void test_pow() {
             throw invalid_argument("failed");
         }
     } while(--T);
+    cout<<"Passed"<<endl;
+
+    T = 20;
+    clock_t start, end;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER((BASE)(rand() % 100 + 1));
+        BN pow_res(INPUT ^ POWER);
+    } while(--T);
+    end = clock();
+    cout<<"FAST POW:\t"<<end - start<<" ticks\n";
+
+    T = 20;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER((BASE)(rand() % 100 + 1));
+        BN mul_res(INPUT);
+        BN ONE((BASE)1);
+        while (POWER > ONE) {
+            mul_res *= INPUT;
+            POWER -= ONE;
+        }
+    } while(--T);
+    end = clock();
+    cout<<"Mul POW:\t"<<end - start<<" ticks\n";
+}
+
+void test_square() {
+    srand(time(NULL));
+    int M = 1000;
+    int T = 1000;
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN square_res(INPUT.square());
+        BN mul_res(INPUT * INPUT);
+        if (square_res != mul_res) {
+            cout<<square_res<<endl<<mul_res<<endl;
+            cout<<endl<<"-------";
+            throw invalid_argument("failed");
+        }
+    } while(--T);
+    cout<<"Passed"<<endl;
+
+    T = 1000;
+    clock_t start, end;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN square_res(INPUT.square());
+    } while(--T);
+    end = clock();
+    cout<<"Square:\t"<<end - start<<" ticks\n";
+
+    T = 1000;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        BN INPUT(n, false);
+        BN mul_res(INPUT * INPUT);
+    } while(--T);
+    end = clock();
+    cout<<"Mul:\t"<<end - start<<" ticks\n";
+}
+
+void test_powmod() {
+    srand(time(NULL));
+    int M = 200;
+    int T = 20;
+    do {
+        int n = rand() % M + 1;
+        int m = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER((BASE)(rand() % 100 + 1));
+        BN MODULE(m, false);
+        BN pow_res(INPUT.powmod(POWER, MODULE));
+        BN mul_res(INPUT);
+        BN ONE((BASE)1);
+        while (POWER > ONE) {
+            mul_res = (mul_res * INPUT) % MODULE;
+            POWER -= ONE;
+        }
+        if (pow_res != mul_res) {
+            cout<<pow_res<<endl<<mul_res<<endl;
+            cout<<endl<<"-------";
+            throw invalid_argument("failed");
+        }
+    } while(--T);
+    cout<<"Passed"<<endl;
+
+    T = 20;
+    clock_t start, end;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        int m = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER((BASE)(rand() % 100 + 1));
+        BN MODULE(m, false);
+        BN pow_res(INPUT.powmod(POWER, MODULE));
+    } while(--T);
+    end = clock();
+    cout<<"FAST POW:\t"<<end - start<<" ticks\n";
+
+    T = 20;
+    start = clock();
+    do {
+        int n = rand() % M + 1;
+        int m = rand() % M + 1;
+        BN INPUT(n, false);
+        BN POWER((BASE)(rand() % 100 + 1));
+        BN MODULE(m, false);
+        BN mul_res(INPUT);
+        BN ONE((BASE)1);
+        while (POWER > ONE) {
+            mul_res = (mul_res * INPUT) % MODULE;
+            POWER -= ONE;
+        }
+    } while(--T);
+    end = clock();
+    cout<<"Mul POW:\t"<<end - start<<" ticks\n";
 }
 
 int main() {
-    test_pow();
+
+    test_powmod();
+
     return 0;
 }
