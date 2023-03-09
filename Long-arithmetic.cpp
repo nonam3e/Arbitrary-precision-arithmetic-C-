@@ -401,21 +401,23 @@ public:
         result.resize();
         return result;
     }
-    BN operator ^(BN other) {
-        BASE cpy = other.coef[0];
+    BN operator ^(int n) {
+        if (n == 0) return BN((BASE)1);
+        if (n == 1) return *this;
+        if (*this == BN((BASE)0) || *this == BN((BASE) 1)) return *this;
         BN result((BASE)1);
         BN temp(*this);
-        while (cpy != 0) {
-            if (cpy & 1) {
+        while (n != 0) {
+            if (n & 1) {
                 result *= temp;
             }
             temp = temp.square();
-            cpy>>=1;
+            n>>=1;
         }
         return result;
     }
-    BN& operator ^=(BN other) {
-        return *this=*this^other;
+    BN& operator ^=(int n) {
+        return *this=*this^n;
     }
     BN powmod(BN other, BN module) {
         BASE cpy = other.coef[0];
@@ -586,19 +588,20 @@ void test_shift() {
 
 //test pow function
 void test_pow() {
-    srand(time(NULL));
+    time_t seed = time(NULL);
+    srand(seed);
     int M = 200;
-    int T = 20;
+    int T = 15;
     do {
         int n = rand() % M + 1;
         BN INPUT(n, false);
-        BN POWER((BASE)(rand() % 100 + 1));
-        BN pow_res(INPUT ^ POWER);
+        int POWER(rand() % 200 + 1);
+        BN pow_res(INPUT);
+        pow_res ^= POWER;
         BN mul_res(INPUT);
-        BN ONE((BASE)1);
-        while (POWER > ONE) {
+        while (POWER > 1) {
             mul_res *= INPUT;
-            POWER -= ONE;
+            POWER --;
         }
         if (pow_res != mul_res) {
             cout<<pow_res<<endl<<mul_res<<endl;
@@ -608,24 +611,27 @@ void test_pow() {
     } while(--T);
     cout<<"Passed"<<endl;
 
-    T = 20;
+    T = 15;
     clock_t start, end;
+    srand(seed);
     start = clock();
     do {
         int n = rand() % M + 1;
         BN INPUT(n, false);
-        BN POWER((BASE)(rand() % 100 + 1));
-        BN pow_res(INPUT ^ POWER);
+        int POWER(rand() % 200 + 1);
+        BN pow_res(INPUT);
+        pow_res ^= POWER;
     } while(--T);
     end = clock();
     cout<<"FAST POW:\t"<<end - start<<" ticks\n";
 
-    T = 20;
+    T = 15;
+    srand(seed);
     start = clock();
     do {
         int n = rand() % M + 1;
         BN INPUT(n, false);
-        BN POWER((BASE)(rand() % 100 + 1));
+        BN POWER((BASE)(rand() % 200 + 1));
         BN mul_res(INPUT);
         BN ONE((BASE)1);
         while (POWER > ONE) {
@@ -677,7 +683,8 @@ void test_square() {
 }
 
 void test_powmod() {
-    srand(time(NULL));
+    time_t seed = time(NULL);
+    srand(seed);
     int M = 200;
     int T = 20;
     do {
@@ -703,6 +710,7 @@ void test_powmod() {
 
     T = 20;
     clock_t start, end;
+    srand(seed);
     start = clock();
     do {
         int n = rand() % M + 1;
@@ -716,6 +724,7 @@ void test_powmod() {
     cout<<"FAST POW:\t"<<end - start<<" ticks\n";
 
     T = 20;
+    srand(seed);
     start = clock();
     do {
         int n = rand() % M + 1;
@@ -735,7 +744,11 @@ void test_powmod() {
 }
 
 int main() {
-
+    // cout<<"SQUARE\n";
+    // test_square();
+    cout<<"POW\n";
+    test_pow();
+    cout<<"POWMOD\n";
     test_powmod();
 
     return 0;
