@@ -7,7 +7,7 @@ using namespace std;
 typedef uint16_t BASE;
 typedef uint32_t DBASE;
 typedef uint64_t FBASE; //:C
-#define BASE_SIZE (sizeof(BASE)*8)
+const BASE BASE_SIZE = sizeof(BASE) * 8;
 
 //a=a.coef[i]*(2^(BASE_SIZE^i)), 0<=i<a.len
 const char alphabet[] = "0123456789abcdef";
@@ -28,12 +28,8 @@ public:
         else {
             len = maxlen;
             for(int i=0; i<len; i++){
-
-                for(int j = 0; j*12 < BASE_SIZE; j++){
-                    coef[i] = coef[i]<<(j*6)|rand();
-                }
+                coef[i] = (BASE)rand();
             }
-            if (!coef[0]) coef[0] = 4;
             while(len>1 && coef[len-1]==0){
                 len--;
             }
@@ -357,8 +353,13 @@ public:
         return *this=*this%other;
     }
 
-    BN& operator >>=(const BASE& factor) {
-        if (factor > BASE_SIZE) throw invalid_argument("SHIFT IS NOT IMPLEMENTED FOR VALUES >= BASE_SIZE");
+    BN& operator >>=(BASE factor) {
+        if (factor >= BASE_SIZE)  {
+            int pos = factor / BASE_SIZE;
+            if (pos >= len) {*this = BN(0); return *this;}
+            coef = &coef[pos];
+            factor = factor % BASE_SIZE;
+        }
         BASE temp1(0);
         BASE temp2;
         BASE mask = (1 << factor) - 1;
@@ -432,6 +433,50 @@ public:
         }
         return result;
     }
+    BN barrett(const BN& m) {
+        BN z(this->barret_get_z(m));
+        return barrett_module(m, z);
+    }
+    BN barret_get_z(const BN& m) {
+        BN z(2 * m.len + 1);
+        z.coef[2 * m.len] = 1;
+        z.len = 2 * m.len + 1;
+        z /= m;
+        return z;
+    }
+    BN barrett_module(const BN& m, BN& z) {
+        BN q(len - m.len, true);
+        if (len >= m.len) {
+            q.len = len - (m.len - 1);
+            for (int i = 0; i < len - (m.len - 1); i++)
+                q.coef[i] = coef[m.len + i - 1];
+            q = z * q;
+            if (q.len <= m.len + 1) q = 0;
+            else {
+                for (int i = 0; i < q.len - (m.len + 1); i++)
+                    q.coef[i] = q.coef[m.len + 1 + i];
+                q.len -= (m.len + 1);
+            }
+        }
+        BN r1(*this);
+        if (r1.len > m.len + 1)
+            r1.len = m.len + 1;
+        BN r2(q * m);
+        if (r2.len > m.len + 1)
+            r2.len = m.len + 1;
+        BN r(m.len + 2, true);
+        if (r1 >= r2)
+            r = r1 - r2;
+        else {
+            r.len = m.len + 2;
+            r.coef[m.len+1] = 1;
+            r = r + r1 - r2;
+        }
+        while (r >= m) {
+            r -= m;
+        }
+        return r;
+    }
 
 
     istream& read(istream& in, BASE base) {
@@ -469,7 +514,11 @@ public:
         }
         return out;
     }
-    ~BN() { delete[]coef; coef = nullptr; }
+    ~BN() { 
+        if (coef) {
+        delete[]coef;
+        coef = nullptr;}
+    }
 
     friend istream& operator >> (istream&, BN&);
     friend ostream& operator << (ostream&, const BN&);
@@ -566,13 +615,13 @@ void test() {
 // test shift function
 void test_shift() {
     srand(time(NULL));
-    int M = 10;
+    int M = 1000;
     int T = 100;
     do {
         int n = rand() % M + 1;
         BN SHIFT(n, false);
         BN a = 2;
-        for (BASE i = 1; i <= BASE_SIZE && a < 999999999; i++) {
+        for (BASE i = BASE_SIZE; i <= 3*BASE_SIZE && a < 99999999; i++) {
             BN shift_res = SHIFT>>i;
             BN div_res = SHIFT/a;
             if (shift_res != div_res) {
@@ -744,12 +793,26 @@ void test_powmod() {
 }
 
 int main() {
+    srand(time(NULL));
+    BN a(39, false);
+    BN b(30, false);
+    cout<<a<<endl<<b<<endl;
+    clock_t start, end;
+    start = clock();
+    cout<<a.barrett(b)<<endl;
+    end = clock();
+    cout << end - start << endl;
+    start = clock();
+    cout<<a % b<<endl;
+    end = clock();
+    cout << end - start << endl;
+    // test_shift();
     // cout<<"SQUARE\n";
     // test_square();
-    cout<<"POW\n";
-    test_pow();
-    cout<<"POWMOD\n";
-    test_powmod();
+    // cout<<"POW\n";
+    // test_pow();
+    // cout<<"POWMOD\n";
+    // test_powmod();
 
     return 0;
 }
